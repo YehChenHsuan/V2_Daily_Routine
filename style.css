@@ -844,24 +844,24 @@ body, html {
 .right-foot { transform: rotate(-20deg); }
 
 /* ==========================================================================
-   句型拼裝時間模組 (Sentence Builder - 排序由上而下：選項 -> 問號框 -> 工具列)
+   句型拼裝時間模組 (Sentence Builder - 放大視窗與單排大積木，往下一點)
    ========================================================================== */
 .sentence-builder-panel {
   width: 100%;
-  max-width: 540px;
-  background: rgba(15, 23, 42, 0.95);
-  border: 2px solid rgba(56, 189, 248, 0.4);
-  border-radius: 20px;
-  padding: 12px 18px;
-  margin-top: 4px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+  max-width: 680px; /* 大螢幕放大至 680px */
+  background: rgba(15, 23, 42, 0.96);
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  border-radius: 24px;
+  padding: 18px 24px;
+  margin-top: 26px; /* 往下一點，保留與鬧鐘舒適距離 */
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65), inset 0 2px 3px rgba(255, 255, 255, 0.25);
   display: none;
   flex-direction: column;
   align-items: center;
   transform: translateY(16px);
   opacity: 0;
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   z-index: 20;
 }
 
@@ -871,59 +871,59 @@ body, html {
   opacity: 1;
 }
 
-/* 1. 最上方：2.5D 單字積木選項池 (嚴格保持單排不換行) */
+/* 1. 最上方：2.5D 單字積木選項池 (大顆單排展示，嚴格不折行) */
 .word-blocks-pool {
   display: flex;
-  flex-wrap: nowrap; /* 盡量維持單排 */
-  gap: 8px;
+  flex-wrap: nowrap; /* 嚴格單排 */
+  gap: 12px;
   justify-content: center;
   align-items: center;
   width: 100%;
   overflow-x: auto;
-  padding: 4px 4px 10px;
-  margin-bottom: 8px;
+  padding: 6px 6px 14px;
+  margin-bottom: 12px;
   scrollbar-width: thin;
 }
 
 .word-block {
   background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
-  font-size: 15px;
+  font-size: 18px; /* 放大文字 */
   font-weight: 800;
-  padding: 8px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 5px 0 #075985, 0 8px 12px rgba(0, 0, 0, 0.3);
+  padding: 11px 20px; /* 放大內距 */
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 6px 0 #075985, 0 10px 16px rgba(0, 0, 0, 0.35);
   cursor: pointer;
-  white-space: nowrap; /* 詞塊不折行 */
+  white-space: nowrap; /* 不折行 */
   flex-shrink: 0;
   transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
 }
 
 .word-block:hover, .word-block.finger-hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-  box-shadow: 0 8px 0 #075985, 0 12px 18px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 10px 0 #075985, 0 15px 22px rgba(6, 182, 212, 0.45);
 }
 
 .word-block:active, .word-block.selected-burst {
-  transform: translateY(4px);
-  box-shadow: 0 1px 0 #075985, 0 3px 5px rgba(0, 0, 0, 0.3);
+  transform: translateY(5px);
+  box-shadow: 0 1px 0 #075985, 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .word-block.used {
   opacity: 0.25;
   pointer-events: none;
-  transform: translateY(5px);
+  transform: translateY(6px);
   box-shadow: 0 0 0 transparent;
 }
 
-/* 2. 中間：句型填空格位 */
+/* 2. 中間：句型填空格位 (大框視覺) */
 .sentence-slots-wrap {
   display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 14px;
   flex-wrap: nowrap;
   justify-content: center;
   width: 100%;
@@ -931,15 +931,15 @@ body, html {
 }
 
 .sentence-slot {
-  min-width: 72px;
-  height: 42px;
-  border: 2px dashed rgba(56, 189, 248, 0.5);
-  background: rgba(30, 41, 59, 0.6);
-  border-radius: 12px;
+  min-width: 90px; /* 放大空格 */
+  height: 50px;
+  border: 2.5px dashed rgba(56, 189, 248, 0.5);
+  background: rgba(30, 41, 59, 0.65);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 10px;
+  padding: 0 14px;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.2s ease;
@@ -948,19 +948,19 @@ body, html {
 .sentence-slot.filled {
   border-style: solid;
   border-color: #38bdf8;
-  background: rgba(2, 132, 199, 0.3);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+  background: rgba(2, 132, 199, 0.35);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.45);
 }
 
 .slot-placeholder {
   color: rgba(255, 255, 255, 0.3);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
 }
 
 .filled-word {
   color: #ffffff;
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: 0.5px;
 }
@@ -968,8 +968,8 @@ body, html {
 .sentence-slots-wrap.glow-success .sentence-slot {
   border-color: #10b981;
   background: rgba(16, 185, 129, 0.4);
-  box-shadow: 0 0 20px #10b981;
-  transform: scale(1.04);
+  box-shadow: 0 0 24px #10b981;
+  transform: scale(1.05);
 }
 
 .sentence-slots-wrap.shake-error {
@@ -982,25 +982,25 @@ body, html {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 8px;
+  gap: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
 }
 
 .footer-left-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex: 1;
 }
 
 .mini-avatar {
-  width: 38px;
-  height: 38px;
+  width: 46px; /* 放大頭像 */
+  height: 46px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--accent-amber);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   flex-shrink: 0;
 }
 
@@ -1008,12 +1008,12 @@ body, html {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #ffffff;
   border: none;
-  border-radius: 14px;
-  padding: 5px 14px;
-  font-size: 13px;
+  border-radius: 16px;
+  padding: 8px 18px; /* 放大按鈕 */
+  font-size: 15px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
   transition: all 0.2s ease;
 }
@@ -1026,11 +1026,11 @@ body, html {
 .speech-bubble {
   background: #334155;
   color: #38bdf8;
-  padding: 5px 12px;
-  border-radius: 12px;
-  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 14px;
+  font-size: 15px;
   font-weight: 800;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   transition: all 0.2s ease;
 }
 
@@ -1042,9 +1042,9 @@ body, html {
   background: rgba(239, 68, 68, 0.2);
   border: 1px solid rgba(239, 68, 68, 0.5);
   color: #fca5a5;
-  padding: 5px 14px;
-  border-radius: 14px;
-  font-size: 13px;
+  padding: 8px 18px; /* 放大按鈕 */
+  border-radius: 16px;
+  font-size: 15px;
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
@@ -1364,26 +1364,69 @@ body, html {
     padding: 8px 14px;
   }
   .clock-body {
-    width: 280px;
-    height: 280px;
+    width: 300px;
+    height: 300px;
   }
   .card-title {
     font-size: 16px;
   }
+  .sentence-builder-panel {
+    max-width: 540px;
+    padding: 12px 16px;
+    margin-top: 14px;
+  }
+  .word-block {
+    font-size: 15px;
+    padding: 8px 14px;
+  }
+  .sentence-slot {
+    min-width: 72px;
+    height: 42px;
+  }
+  .filled-word {
+    font-size: 16px;
+  }
 }
 
-@media (max-height: 700px) {
+@media (max-height: 760px) {
   .clock-body {
-    width: 240px;
-    height: 240px;
-    border-width: 6px;
+    width: 280px;
+    height: 280px;
+    border-width: 8px;
   }
   .analog-dial {
-    width: 80px;
-    height: 80px;
+    width: 76px;
+    height: 76px;
   }
   .digital-time-text {
     font-size: 26px;
+  }
+  .task-banner-box {
+    padding: 6px 10px;
+    gap: 4px;
+  }
+  .task-zh-text {
+    font-size: 13px;
+  }
+  .clock-audio-play-btn {
+    padding: 3px 12px;
+    font-size: 12px;
+  }
+  .sentence-builder-panel {
+    max-width: 580px;
+    padding: 10px 16px;
+    margin-top: 12px;
+  }
+  .word-block {
+    font-size: 15px;
+    padding: 8px 14px;
+  }
+  .sentence-slot {
+    min-width: 74px;
+    height: 42px;
+  }
+  .filled-word {
+    font-size: 16px;
   }
   .routine-card {
     padding: 6px;
