@@ -50,6 +50,14 @@
               <span class="btn-sub-text">免鏡頭，適合平板或一般電腦</span>
             </div>
           </button>
+
+          <button id="landing-leaderboard-btn" class="glow-btn leader-btn">
+            <span class="btn-icon">🏆</span>
+            <div class="btn-text-wrap">
+              <span class="btn-main-text">速度英雄排行榜</span>
+              <span class="btn-sub-text">查看最快通關紀錄</span>
+            </div>
+          </button>
         </div>
 
         <!-- 快速教學圖卡 -->
@@ -89,6 +97,7 @@
         <button id="btn-home" class="hud-circle-btn" title="回到首頁">🏠</button>
         <button id="btn-sound" class="hud-circle-btn" title="音效開關">🔊</button>
         <button id="btn-camera-toggle" class="hud-circle-btn" title="切換鏡頭">📹</button>
+        <button id="btn-leaderboard" class="hud-circle-btn" title="排行榜">🏆</button>
         <button id="btn-fullscreen" class="hud-circle-btn" title="全螢幕">⛶</button>
       </div>
 
@@ -105,7 +114,8 @@
       </div>
 
       <div class="hud-right">
-        <div class="hud-stat-badge hearts-badge" id="hud-hearts">❤️ ❤️ ❤️ ❤️ ❤️</div>
+        <!-- 闖關計時器 (看誰最快完成任務) -->
+        <div class="hud-stat-badge timer-badge">⏱️ <span id="hud-timer">00:00.0</span></div>
         <div class="hud-stat-badge score-badge">⭐ <span id="hud-score">0</span></div>
         <div class="hud-stat-badge combo-badge">✦ <span id="hud-combo">0</span> COMBO</div>
       </div>
@@ -173,24 +183,32 @@
           </div>
         </div>
 
-        <!-- 句型拼裝時間面板 (Sentence Builder - 參考 V2_06-07) -->
+        <!-- 句型拼裝時間面板 (Sentence Builder - 排序由上而下：選項 -> 問號框 -> 提示與重排與頭像) -->
         <div class="sentence-builder-panel" id="sentence-panel">
-          <div class="sentence-panel-header">
-            <div class="character-mini-bubble">
-              <img src="assets/students.webp" alt="Avatar" class="mini-avatar" />
-              <div class="speech-bubble" id="sentence-target-hint">請拼出句型：I wake up.</div>
-            </div>
-            <button id="clear-sentence-btn" class="clear-btn" title="重排積木">🔄 重排</button>
+          <!-- 1. 最上方：候選單字積木選項池 (盡量單排不換行) -->
+          <div class="word-blocks-pool" id="word-blocks">
+            <!-- 動態插入單字積木 -->
           </div>
 
-          <!-- 句型填空目標格位 -->
+          <!-- 2. 中間：問號填空格位 -->
           <div class="sentence-slots-wrap" id="sentence-slots">
             <!-- 動態插入單字空格 -->
           </div>
 
-          <!-- 候選單字積木池 -->
-          <div class="word-blocks-pool" id="word-blocks">
-            <!-- 動態插入單字積木 -->
+          <!-- 3. 最下方：男女小頭像 + 提示答案按鈕 (按鈕按下才顯示答案) + 重排按鈕 -->
+          <div class="sentence-panel-footer">
+            <div class="footer-left-controls">
+              <img src="assets/students.webp" alt="Avatar" class="mini-avatar" />
+              <button id="toggle-hint-btn" class="hint-btn interactive-target" title="點擊查看或隱藏句型提示">
+                💡 提示答案
+              </button>
+              <div class="speech-bubble hidden-hint" id="sentence-target-hint">
+                I wake up.
+              </div>
+            </div>
+            <button id="clear-sentence-btn" class="clear-btn interactive-target" title="重排積木">
+              🔄 重排
+            </button>
           </div>
         </div>
 
@@ -211,13 +229,19 @@
 
   </main>
 
-  <!-- 全通關勝利結算彈窗 (Victory Modal) -->
+  <!-- 全通關勝利結算彈窗 (Victory Modal - 速度排行榜模式) -->
   <div id="victory-modal" class="screen-overlay">
     <div class="victory-card 3d-card">
       <div class="trophy-bounce">🏆</div>
       <h2 class="victory-title">TIME MASTER!</h2>
-      <h3 class="victory-subtitle">恭喜你！完成一日晨間所有作息！</h3>
+      <h3 class="victory-subtitle">恭喜你！成功完成所有一日晨間任務！</h3>
       
+      <!-- 通關時間大展示 -->
+      <div class="victory-time-banner">
+        <span class="time-banner-label">🏁 總通關時間：</span>
+        <span class="time-banner-val" id="final-time">00:00.0</span>
+      </div>
+
       <div class="victory-stats-grid">
         <div class="stat-box">
           <span class="stat-num" id="final-score">0</span>
@@ -228,18 +252,60 @@
           <span class="stat-label">最高連擊</span>
         </div>
         <div class="stat-box">
-          <span class="stat-num">100%</span>
-          <span class="stat-label">作息掌握度</span>
+          <span class="stat-num" id="final-rank-title">超光速先鋒 ⚡</span>
+          <span class="stat-label">獲得榮譽稱號</span>
         </div>
       </div>
 
-      <div class="victory-character-wrap">
-        <img src="assets/students.webp" alt="Students Cheering" class="victory-students" />
+      <!-- 登記英雄榜 -->
+      <div class="record-input-section">
+        <input type="text" id="player-name-input" maxlength="10" placeholder="輸入英文名字或暱稱" value="Player" />
+        <button id="save-record-btn" class="save-record-btn interactive-target">
+          🏅 登錄排行榜
+        </button>
       </div>
 
-      <button id="btn-restart" class="glow-btn primary-btn large-btn">
-        <span>🔄 再玩一次 PLAY AGAIN</span>
-      </button>
+      <!-- 排行榜預覽清單 -->
+      <div class="leaderboard-table-wrap" id="victory-leaderboard-list">
+        <!-- 動態渲染排名 -->
+      </div>
+
+      <div class="victory-actions">
+        <button id="btn-restart" class="glow-btn primary-btn large-btn interactive-target">
+          <span>🔄 再挑戰一次 PLAY AGAIN</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 獨立排行榜彈窗 (隨時查看) -->
+  <div id="leaderboard-modal" class="screen-overlay">
+    <div class="landing-card 3d-card leaderboard-card">
+      <div class="leaderboard-header">
+        <h2 class="landing-title">🏆 晨間作息速度英雄榜 🏆</h2>
+        <p class="landing-desc">看誰以最短時間成為 Time Master！</p>
+      </div>
+
+      <div class="leaderboard-table-wrap" id="modal-leaderboard-list">
+        <!-- 動態渲染前 10 名清單 -->
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button id="close-leaderboard-btn" class="glow-btn secondary-btn interactive-target" style="margin: 0 auto;">
+          <span>關閉返回 CLOSE</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 手機橫屏強制提醒遮罩 (手機直向時自動觸發) -->
+  <div id="rotate-screen-overlay" class="rotate-screen-overlay">
+    <div class="rotate-box">
+      <div class="rotate-phone-animation">📱 ➔ 📲</div>
+      <h2 class="rotate-title">請旋轉為【橫向螢幕】</h2>
+      <p class="rotate-desc">
+        本遊戲專為左右手勢與寬螢幕作息設計，請將手機或平板轉為橫向以開始冒險！
+      </p>
     </div>
   </div>
 

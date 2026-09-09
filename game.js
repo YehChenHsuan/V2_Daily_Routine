@@ -1,19 +1,20 @@
 /**
  * game.js - ESL V2 Daily Routine 核心遊戲邏輯與狀態機
- * 依據 V2_04-05 與 V2_06-07 教材：
- * 1. 一日晨間時間軸 (07:00 ~ 08:30)
- * 2. 鬧鐘出題與左右 6 卡 3D 擬物配對
- * 3. 句型文字積木組合 (Sentence Builder)
- * 4. 體感指尖與滑鼠/觸控雙模式控制
+ * 包含：
+ * 1. 一日晨間時間軸 (07:00 ~ 08:30) 闖關速度挑戰 (Speedrun Timer)
+ * 2. 移除血值，看誰最快完成任務，登錄排行榜 (LocalStorage)
+ * 3. 鬧鐘出題 (中文任務 TTS 發音完全一致) 與左右 6 卡 3D 配對
+ * 4. 句型文字積木組合 (Sentence Builder - 排序由上而下：選項 -> 空格 -> 工具列/提示按鈕/重排)
+ * 5. 全面支援手勢指尖辨識懸停 (重排按鈕、提示按鈕、聽發音按鈕、單字積木、配對卡片)
  */
 
-// 8 大核心日常作息題庫
+// 8 大核心日常作息題庫 (對應課本 V2_04-05 & V2_06-07)
 const ROUTINE_DATA = [
   {
     id: 'wake_up',
     timeStr: '07:00 AM',
-    hourDeg: 210, // 時針角度
-    minDeg: 0,    // 分針角度
+    hourDeg: 210,
+    minDeg: 0,
     zhTask: '早晨起床了！伸個大懶腰',
     enText: 'wake up',
     audioWord: 'wake up',
@@ -122,8 +123,12 @@ class DailyRoutineGame {
     this.score = 0;
     this.combo = 0;
     this.maxCombo = 0;
-    this.hearts = 5;
-    this.controlMode = 'hand'; // 'hand' or 'touch'
+    this.controlMode = 'hand'; // 'hand' or 'mouse'
+
+    // 計時器 (Speedrun Stopwatch)
+    this.startTime = 0;
+    this.elapsedMs = 0;
+    this.timerInterval = null;
 
     // 句型拼字暫存
     this.currentSentenceWords = [];
@@ -133,6 +138,7 @@ class DailyRoutineGame {
     this.landingScreen = document.getElementById('landing-screen');
     this.gameStage = document.getElementById('game-stage');
     this.victoryModal = document.getElementById('victory-modal');
+    this.leaderboardModal = document.getElementById('leaderboard-modal');
 
     // 鬧鐘元件
     this.alarmClockEl = document.getElementById('alarm-clock');
@@ -146,17 +152,18 @@ class DailyRoutineGame {
     this.leftCardsContainer = document.getElementById('left-cards-col');
     this.rightCardsContainer = document.getElementById('right-cards-col');
 
-    // 句型拼裝盤
+    // 句型拼裝盤 (由上而下：選項池 -> 空格 -> 工具列/提示/重排)
     this.sentencePanel = document.getElementById('sentence-panel');
-    this.sentenceSlotsContainer = document.getElementById('sentence-slots');
     this.wordBlocksContainer = document.getElementById('word-blocks');
+    this.sentenceSlotsContainer = document.getElementById('sentence-slots');
+    this.toggleHintBtn = document.getElementById('toggle-hint-btn');
     this.sentenceTargetHint = document.getElementById('sentence-target-hint');
     this.clearSentenceBtn = document.getElementById('clear-sentence-btn');
 
     // HUD 節點
+    this.hudTimerEl = document.getElementById('hud-timer');
     this.scoreValEl = document.getElementById('hud-score');
     this.comboValEl = document.getElementById('hud-combo');
-    this.heartsContainer = document.getElementById('hud-hearts');
     this.levelIndicatorEl = document.getElementById('level-indicator');
     this.timelineProgress = document.getElementById('timeline-progress-bar');
     this.statusTipEl = document.getElementById('status-tip');
@@ -184,6 +191,9 @@ class DailyRoutineGame {
     document.getElementById('start-mouse-btn').addEventListener('click', () => {
       this.startGame('mouse');
     });
+    document.getElementById('landing-leaderboard-btn').addEventListener('click', () => {
+      this.openLeaderboardModal();
+    });
 
     // 頂部導航
     document.getElementById('btn-home').addEventListener('click', () => {
@@ -196,6 +206,9 @@ class DailyRoutineGame {
     document.getElementById('btn-camera-toggle').addEventListener('click', () => {
       this.toggleCamera();
     });
+    document.getElementById('btn-leaderboard').addEventListener('click', () => {
+      this.openLeaderboardModal();
+    });
     document.getElementById('btn-fullscreen').addEventListener('click', () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
@@ -204,20 +217,39 @@ class DailyRoutineGame {
       }
     });
 
-    // 鬧鐘重聽按鈕
+    // 鬧鐘任務語音播放按鈕 (播放中文任務)
     this.clockAudioBtn.addEventListener('click', () => {
       this.playCurrentLevelAudio();
     });
 
+    // 提示答案按鈕
+    if (this.toggleHintBtn) {
+      this.toggleHintBtn.addEventListener('click', () => {
+        this.toggleHint();
+      });
+    }
+
     // 清除句型重選按鈕
-    this.clearSentenceBtn.addEventListener('click', () => {
-      this.resetCurrentSentenceBlocks();
-    });
+    if (this.clearSentenceBtn) {
+      this.clearSentenceBtn.addEventListener('click', () => {
+        this.resetCurrentSentenceBlocks();
+      });
+    }
 
     // 勝利彈窗重玩
     document.getElementById('btn-restart').addEventListener('click', () => {
       this.victoryModal.classList.remove('active');
       this.startGame(this.controlMode);
+    });
+
+    // 登錄排行榜按鈕
+    document.getElementById('save-record-btn').addEventListener('click', () => {
+      this.saveCurrentRecord();
+    });
+
+    // 關閉排行榜視窗
+    document.getElementById('close-leaderboard-btn').addEventListener('click', () => {
+      this.closeLeaderboardModal();
     });
   }
 
@@ -245,17 +277,55 @@ class DailyRoutineGame {
     this.score = 0;
     this.combo = 0;
     this.maxCombo = 0;
-    this.hearts = 5;
     this.renderHUD();
+
+    // 啟動闖關計時器
+    this.startStopwatch();
+
     this.loadLevel(this.currentLevelIndex);
+  }
+
+  // 啟動闖關碼錶計時器
+  startStopwatch() {
+    this.stopStopwatch();
+    this.startTime = Date.now();
+    this.elapsedMs = 0;
+
+    this.timerInterval = setInterval(() => {
+      this.elapsedMs = Date.now() - this.startTime;
+      this.renderTimer();
+    }, 100);
+  }
+
+  stopStopwatch() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  renderTimer() {
+    if (this.hudTimerEl) {
+      this.hudTimerEl.textContent = this.formatTime(this.elapsedMs);
+    }
+  }
+
+  formatTime(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    const tenths = Math.floor((ms % 1000) / 100);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${tenths}`;
   }
 
   // 回到首頁
   returnToHome() {
     this.state = 'LANDING';
+    this.stopStopwatch();
     this.tracker.stopCamera();
     this.gameStage.classList.remove('active');
     this.victoryModal.classList.remove('active');
+    this.leaderboardModal.classList.remove('active');
     this.landingScreen.classList.add('active');
     window.soundSystem.stopBgm();
   }
@@ -305,20 +375,20 @@ class DailyRoutineGame {
 
     // 更新進度與指示
     this.renderHUD();
-    this.updateStatusTip(`請依時間【${item.timeStr}】找出正確的作息卡！`);
+    this.updateStatusTip(`【${item.timeStr}】${item.zhTask}！`);
 
-    // 自動播放提示語音
+    // 自動使用瀏覽器 TTS 朗讀跟任務一樣的中文文字
     setTimeout(() => {
       this.playCurrentLevelAudio();
     }, 600);
   }
 
-  // 播放當前關卡語音
+  // 播放任務文字發音 (使用瀏覽器 TTS 發出跟任務一樣的文字)
   playCurrentLevelAudio() {
     const item = ROUTINE_DATA[this.currentLevelIndex];
     if (!item) return;
     this.clockAudioBtn.classList.add('pulsing');
-    window.soundSystem.playZhAudio(item.audioWord, () => {
+    window.soundSystem.speakTTSZh(item.zhTask, () => {
       this.clockAudioBtn.classList.remove('pulsing');
     });
   }
@@ -365,16 +435,69 @@ class DailyRoutineGame {
     });
   }
 
-  // 處理互動選取事件（手勢懸停或點擊）
+  // 處理互動選取事件 (手勢指尖懸停或滑鼠點擊)
   handleInteractiveSelect(el) {
+    if (!el) return;
+
+    // 1. 重排按鈕 (支援指尖懸停與點擊)
+    if (el.id === 'clear-sentence-btn' || el.closest('#clear-sentence-btn')) {
+      this.resetCurrentSentenceBlocks();
+      window.soundSystem.playTick(true);
+      return;
+    }
+
+    // 2. 提示答案按鈕 (支援指尖懸停與點擊)
+    if (el.id === 'toggle-hint-btn' || el.closest('#toggle-hint-btn')) {
+      this.toggleHint();
+      return;
+    }
+
+    // 3. 鬧鐘聽發音按鈕 (支援指尖懸停與點擊)
+    if (el.id === 'clock-audio-btn' || el.closest('#clock-audio-btn')) {
+      this.playCurrentLevelAudio();
+      return;
+    }
+
+    // 4. 空格退回單字 (支援指尖懸停與點擊)
+    if (el.classList.contains('sentence-slot')) {
+      const idx = parseInt(el.dataset.slotIndex, 10);
+      this.unslotWord(idx);
+      return;
+    }
+
+    // 5. 配對階段卡片選取
     if (this.state === 'MATCHING' && el.classList.contains('routine-card')) {
       this.handleCardMatch(el);
-    } else if (this.state === 'SENTENCE_BUILDING' && el.classList.contains('word-block')) {
+      return;
+    }
+
+    // 6. 句型積木單字選取
+    if (this.state === 'SENTENCE_BUILDING' && el.classList.contains('word-block')) {
       this.handleWordBlockSelect(el);
+      return;
+    }
+
+    // 7. 再挑戰一次按鈕
+    if (el.id === 'btn-restart' || el.closest('#btn-restart')) {
+      this.victoryModal.classList.remove('active');
+      this.startGame(this.controlMode);
+      return;
+    }
+
+    // 8. 登錄排行榜按鈕
+    if (el.id === 'save-record-btn' || el.closest('#save-record-btn')) {
+      this.saveCurrentRecord();
+      return;
+    }
+
+    // 9. 關閉排行榜按鈕
+    if (el.id === 'close-leaderboard-btn' || el.closest('#close-leaderboard-btn')) {
+      this.closeLeaderboardModal();
+      return;
     }
   }
 
-  // 驗證卡片配對
+  // 驗證卡片配對 (無血值扣除，答錯純提醒繼續嘗試)
   handleCardMatch(cardEl) {
     if (this.state !== 'MATCHING') return;
     const isCorrect = cardEl.dataset.isCorrect === 'true';
@@ -392,70 +515,50 @@ class DailyRoutineGame {
       window.soundSystem.playSuccessSound();
       window.soundSystem.playWordAudio(currentItem.audioWord);
 
-      this.updateStatusTip(`太棒了！答對了：${currentItem.enText} (+${gain}分)`);
+      this.updateStatusTip(`✨ 太棒了！答對了：${currentItem.enText} (+${gain}分)`);
       this.renderHUD();
 
       // 暫停所有卡片交互
       document.querySelectorAll('.routine-card').forEach(c => c.classList.add('disabled'));
 
-      // 1.2 秒後展開句型積木時間
+      // 1 秒後展開句型積木時間
       setTimeout(() => {
         this.startSentenceBuilding(currentItem);
-      }, 1200);
+      }, 1000);
 
     } else {
-      // 答錯處理
+      // 答錯處理 (無血值！答錯只歸零連擊並鼓勵)
       this.combo = 0;
-      this.hearts--;
       cardEl.classList.add('match-wrong');
       window.soundSystem.playWrongSound();
 
-      setTimeout(() => cardEl.classList.remove('match-wrong'), 600);
+      setTimeout(() => cardEl.classList.remove('match-wrong'), 500);
 
       this.updateStatusTip(`再試一次喔！找找看【${currentItem.zhTask}】`);
-
-      if (this.hearts <= 0) {
-        // 暖心不中斷：答錯不 Game Over，自動補滿愛心鼓勵孩子
-        this.hearts = 3;
-        this.updateStatusTip(`沒關係！加滿愛心繼續加油 ❤️`);
-      }
       this.renderHUD();
     }
   }
 
-  // 進入句型積木拼裝階段 (Sentence Building - 參考 V2_06-07)
+  // 進入句型積木拼裝階段 (排序：1.選項池 -> 2.空格 -> 3.工具列/提示按鈕/重排)
   startSentenceBuilding(item) {
     this.state = 'SENTENCE_BUILDING';
     this.sentencePanel.classList.add('active');
 
-    this.sentenceSlotsContainer.innerHTML = '';
     this.wordBlocksContainer.innerHTML = '';
+    this.sentenceSlotsContainer.innerHTML = '';
     this.selectedWords = [];
 
-    // 目標句子與積木打散
-    const targetWords = [...item.sentenceBlocks];
-    this.currentSentenceWords = targetWords;
+    // 設定答案文字並預設隱藏 (不直接劇透答案)
+    this.sentenceTargetHint.textContent = item.sentenceTarget;
+    this.sentenceTargetHint.classList.add('hidden-hint');
+    if (this.toggleHintBtn) this.toggleHintBtn.textContent = '💡 提示答案';
 
-    // 提示目標
-    this.sentenceTargetHint.textContent = `請拼出句型：${item.sentenceTarget}`;
+    // 目標單字組
+    this.currentSentenceWords = [...item.sentenceBlocks];
 
-    // 建立上方空格
-    targetWords.forEach((_, idx) => {
-      const slot = document.createElement('div');
-      slot.className = 'sentence-slot';
-      slot.dataset.slotIndex = idx;
-      slot.innerHTML = `<span class="slot-placeholder">?</span>`;
-      slot.addEventListener('click', () => {
-        // 點擊空格可退回該位置的單字
-        this.unslotWord(idx);
-      });
-      this.sentenceSlotsContainer.appendChild(slot);
-    });
-
-    // 混合打散正確字塊與干擾字塊
+    // 1. 最上方：渲染選項單字積木池 (單排不換行)
     const pool = this.shuffleArray([...item.sentenceBlocks, ...item.distractors]);
-
-    pool.forEach((word, idx) => {
+    pool.forEach((word) => {
       const btn = document.createElement('div');
       btn.className = 'word-block interactive-target';
       btn.dataset.word = word;
@@ -468,7 +571,34 @@ class DailyRoutineGame {
       this.wordBlocksContainer.appendChild(btn);
     });
 
-    this.updateStatusTip('動動手指或點擊單字積木，拼出完整句子！');
+    // 2. 中間：渲染填空格位
+    this.currentSentenceWords.forEach((_, idx) => {
+      const slot = document.createElement('div');
+      slot.className = 'sentence-slot interactive-target';
+      slot.dataset.slotIndex = idx;
+      slot.innerHTML = `<span class="slot-placeholder">?</span>`;
+      slot.addEventListener('click', () => {
+        this.unslotWord(idx);
+      });
+      this.sentenceSlotsContainer.appendChild(slot);
+    });
+
+    this.updateStatusTip('請動動手指，由左至右依序點選單字積木！');
+  }
+
+  // 切換答案提示顯示/隱藏
+  toggleHint() {
+    if (!this.sentenceTargetHint) return;
+    const isHidden = this.sentenceTargetHint.classList.contains('hidden-hint');
+    if (isHidden) {
+      this.sentenceTargetHint.classList.remove('hidden-hint');
+      if (this.toggleHintBtn) this.toggleHintBtn.textContent = '🙈 隱藏答案';
+      window.soundSystem.playTick(false);
+    } else {
+      this.sentenceTargetHint.classList.add('hidden-hint');
+      if (this.toggleHintBtn) this.toggleHintBtn.textContent = '💡 提示答案';
+      window.soundSystem.playTick(true);
+    }
   }
 
   // 點選/懸停單字積木
@@ -481,7 +611,6 @@ class DailyRoutineGame {
 
     if (this.selectedWords.length >= targetLen) return;
 
-    // 將單字填入下一個空格
     const targetIndex = this.selectedWords.length;
     this.selectedWords.push({ word, element: blockEl });
     blockEl.classList.add('used');
@@ -494,7 +623,6 @@ class DailyRoutineGame {
       slot.classList.add('filled');
     }
 
-    // 檢查是否填滿所有空格
     if (this.selectedWords.length === targetLen) {
       this.checkSentenceCompletion();
     }
@@ -510,12 +638,11 @@ class DailyRoutineGame {
       item.element.classList.remove('used');
     }
 
-    // 從該處移除並重新渲染空格
     this.selectedWords.splice(slotIdx, 1);
     this.refreshSentenceSlots();
+    window.soundSystem.playTick(true);
   }
 
-  // 重整空格顯示
   refreshSentenceSlots() {
     const slots = this.sentenceSlotsContainer.children;
     for (let i = 0; i < slots.length; i++) {
@@ -529,7 +656,7 @@ class DailyRoutineGame {
     }
   }
 
-  // 重設目前句型
+  // 重設目前句型 (重排)
   resetCurrentSentenceBlocks() {
     this.selectedWords.forEach(it => {
       if (it.element) it.element.classList.remove('used');
@@ -545,7 +672,6 @@ class DailyRoutineGame {
     const expectedSentence = currentItem.sentenceBlocks.join(' ');
 
     if (userSentence === expectedSentence) {
-      // 拼裝成功！
       this.state = 'SENTENCE_SUCCESS';
       this.score += 150;
       this.renderHUD();
@@ -553,21 +679,18 @@ class DailyRoutineGame {
       this.sentenceSlotsContainer.classList.add('glow-success');
       window.soundSystem.playSuccessSound();
 
-      // 標準發音朗讀完整句子
       this.updateStatusTip(`✨ 完美造句：${currentItem.sentenceTarget}`);
       window.soundSystem.speakSentence(currentItem.sentenceTarget, () => {
         setTimeout(() => {
           this.sentenceSlotsContainer.classList.remove('glow-success');
-          // 進入下一時間點關卡
           this.loadLevel(this.currentLevelIndex + 1);
         }, 800);
       });
 
     } else {
-      // 拼裝順序錯誤
       window.soundSystem.playWrongSound();
       this.sentenceSlotsContainer.classList.add('shake-error');
-      this.updateStatusTip('順序不太對喔！點擊空格即可重排');
+      this.updateStatusTip('順序不太對喔！點擊空格或重排即可再試');
 
       setTimeout(() => {
         this.sentenceSlotsContainer.classList.remove('shake-error');
@@ -576,34 +699,124 @@ class DailyRoutineGame {
     }
   }
 
-  // 觸發全通關
+  // 觸發全通關 (結算通關時間與榮譽稱號)
   triggerVictory() {
     this.state = 'VICTORY';
+    this.stopStopwatch();
     window.soundSystem.playVictoryFanfare();
     this.sentencePanel.classList.remove('active');
 
+    const finalTimeStr = this.formatTime(this.elapsedMs);
+    document.getElementById('final-time').textContent = finalTimeStr;
     document.getElementById('final-score').textContent = this.score;
     document.getElementById('final-combo').textContent = this.maxCombo;
+
+    // 評定稱號
+    let title = '準時時間達人 ⏰';
+    if (this.elapsedMs < 60000) {
+      title = '超光速神童 ⚡';
+    } else if (this.elapsedMs < 90000) {
+      title = '晨間飛毛腿 🚀';
+    }
+    document.getElementById('final-rank-title').textContent = title;
+
+    // 渲染結算排行榜
+    this.renderLeaderboardTable('victory-leaderboard-list');
+
     this.victoryModal.classList.add('active');
-    this.updateStatusTip('🎉 恭喜！你完成了今日所有作息挑戰，成為時間大師！');
+    this.updateStatusTip(`🎉 恭喜！你以 ${finalTimeStr} 完成一日晨間挑戰！`);
+  }
+
+  // 儲存目前紀錄至排行榜
+  saveCurrentRecord() {
+    const input = document.getElementById('player-name-input');
+    let name = input ? input.value.trim() : 'Player';
+    if (!name) name = 'Player';
+
+    const records = this.getLeaderboard();
+    const newRecord = {
+      name: name,
+      timeMs: this.elapsedMs,
+      timeStr: this.formatTime(this.elapsedMs),
+      score: this.score,
+      date: new Date().toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })
+    };
+
+    records.push(newRecord);
+    records.sort((a, b) => a.timeMs - b.timeMs); // 時間最少排在前面
+
+    localStorage.setItem('esl_v2_routine_leaderboard', JSON.stringify(records.slice(0, 10)));
+    this.renderLeaderboardTable('victory-leaderboard-list');
+    this.renderLeaderboardTable('modal-leaderboard-list');
+
+    const btn = document.getElementById('save-record-btn');
+    if (btn) {
+      btn.textContent = '✅ 已成功登錄！';
+      btn.disabled = true;
+    }
+    window.soundSystem.playSuccessSound();
+  }
+
+  // 取得排行榜資料
+  getLeaderboard() {
+    try {
+      const data = localStorage.getItem('esl_v2_routine_leaderboard');
+      if (data) return JSON.parse(data);
+    } catch (_) {}
+
+    // 預設示範榜單
+    return [
+      { name: 'Alex', timeMs: 48500, timeStr: '00:48.5', score: 2200, date: '09/09' },
+      { name: 'Emma', timeMs: 58200, timeStr: '00:58.2', score: 2050, date: '09/09' },
+      { name: 'Lucas', timeMs: 74100, timeStr: '01:14.1', score: 1850, date: '09/09' },
+      { name: 'Sophia', timeMs: 89600, timeStr: '01:29.6', score: 1700, date: '09/09' }
+    ];
+  }
+
+  // 渲染排行榜表格
+  renderLeaderboardTable(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const list = this.getLeaderboard();
+    let html = '';
+
+    list.forEach((item, idx) => {
+      let rankBadge = `${idx + 1}`;
+      let topClass = '';
+      if (idx === 0) { rankBadge = '🥇'; topClass = 'top-1'; }
+      else if (idx === 1) { rankBadge = '🥈'; topClass = 'top-2'; }
+      else if (idx === 2) { rankBadge = '🥉'; topClass = 'top-3'; }
+
+      html += `
+        <div class="leader-item">
+          <span class="leader-rank ${topClass}">${rankBadge}</span>
+          <span class="leader-name">${item.name}</span>
+          <span class="leader-time">${item.timeStr}</span>
+          <span class="leader-date">${item.date}</span>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  // 開啟獨立排行榜
+  openLeaderboardModal() {
+    this.renderLeaderboardTable('modal-leaderboard-list');
+    this.leaderboardModal.classList.add('active');
+  }
+
+  closeLeaderboardModal() {
+    this.leaderboardModal.classList.remove('active');
   }
 
   // 更新 HUD
   renderHUD() {
     this.scoreValEl.textContent = this.score;
     this.comboValEl.textContent = this.combo;
-
-    // 愛心
-    let heartsHtml = '';
-    for (let i = 0; i < 5; i++) {
-      heartsHtml += i < this.hearts ? '❤️ ' : '🤍 ';
-    }
-    this.heartsContainer.innerHTML = heartsHtml;
-
-    // 關卡指示
     this.levelIndicatorEl.textContent = `${this.currentLevelIndex + 1} / ${ROUTINE_DATA.length}`;
 
-    // 時間軸進度條
     const pct = Math.min(100, Math.round(((this.currentLevelIndex) / ROUTINE_DATA.length) * 100));
     if (this.timelineProgress) {
       this.timelineProgress.style.width = `${pct}%`;
