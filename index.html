@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ESL Time Routine Master - 晨間作息時鐘大冒險</title>
+  <meta name="description" content="ESL Lesson 2 兒童美語互動網頁遊戲，結合 2.5D 擬物化雙鈴鬧鐘、AI 視訊指尖手勢體感追蹤、作息時間軸配對與句型文字積木組合！" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&family=Outfit:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
+  
+  <!-- MediaPipe Hands CDN 依賴 -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- 首頁歡迎畫面 (Landing Screen) -->
+  <div id="landing-screen" class="screen-overlay active">
+    <div class="landing-card 3d-card">
+      <div class="landing-hero-img-wrap">
+        <img src="assets/clock_hero.webp" alt="ESL Time Alarm Clock" class="landing-clock-hero" />
+        <img src="assets/students.webp" alt="Students Mascot" class="landing-mascot" />
+      </div>
+
+      <div class="landing-content">
+        <div class="landing-badge">ESL Lesson 2 • Daily Routine & Time</div>
+        <h1 class="landing-title">TIME ROUTINE MASTER</h1>
+        <h2 class="landing-subtitle">⏰ 晨間時鐘作息大冒險 ⏰</h2>
+        <p class="landing-desc">
+          看著大鬧鐘的指針與時間，用手指隔空指向兩側的正確作息卡片，再把單字積木拼成完整的英文句子吧！
+        </p>
+
+        <!-- 模式選擇按鈕 -->
+        <div class="mode-buttons-group">
+          <button id="start-hand-btn" class="glow-btn primary-btn">
+            <span class="btn-icon">🖐️</span>
+            <div class="btn-text-wrap">
+              <span class="btn-main-text">AI 影像指尖體感模式</span>
+              <span class="btn-sub-text">開啟攝影機，揮動食指隔空操作</span>
+            </div>
+          </button>
+
+          <button id="start-mouse-btn" class="glow-btn secondary-btn">
+            <span class="btn-icon">🖱️</span>
+            <div class="btn-text-wrap">
+              <span class="btn-main-text">滑鼠 / 觸控點擊模式</span>
+              <span class="btn-sub-text">免鏡頭，適合平板或一般電腦</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- 快速教學圖卡 -->
+        <div class="tutorial-steps">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-title">聽鬧鐘報時</div>
+            <div class="step-desc">觀察液晶時間與中文任務提示</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-title">左右 6 卡配對</div>
+            <div class="step-desc">食指懸停或點選正確英文作息卡</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-title">句型積木組合</div>
+            <div class="step-desc">依序拼裝 I wake up / You take the bus</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主遊戲舞台 (Game Stage) -->
+  <main id="game-stage" class="game-stage">
+    
+    <!-- 視訊鏡頭畫面 (鏡像半透明背景) -->
+    <video id="webcam-video" autoplay playsinline muted></video>
+    
+    <!-- 指尖追蹤與粒子畫布 -->
+    <canvas id="cursor-canvas"></canvas>
+
+    <!-- 頂部 HUD 資訊與控制列 -->
+    <header class="game-hud">
+      <div class="hud-left">
+        <button id="btn-home" class="hud-circle-btn" title="回到首頁">🏠</button>
+        <button id="btn-sound" class="hud-circle-btn" title="音效開關">🔊</button>
+        <button id="btn-camera-toggle" class="hud-circle-btn" title="切換鏡頭">📹</button>
+        <button id="btn-fullscreen" class="hud-circle-btn" title="全螢幕">⛶</button>
+      </div>
+
+      <!-- 中央時間軸進度 -->
+      <div class="hud-center">
+        <div class="timeline-header">
+          <span class="timeline-icon">🌅</span>
+          <span class="timeline-title">Morning Routine 時間軸</span>
+          <span id="level-indicator" class="level-indicator">1 / 8</span>
+        </div>
+        <div class="timeline-bar-bg">
+          <div id="timeline-progress-bar" class="timeline-bar-fill"></div>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <div class="hud-stat-badge hearts-badge" id="hud-hearts">❤️ ❤️ ❤️ ❤️ ❤️</div>
+        <div class="hud-stat-badge score-badge">⭐ <span id="hud-score">0</span></div>
+        <div class="hud-stat-badge combo-badge">✦ <span id="hud-combo">0</span> COMBO</div>
+      </div>
+    </header>
+
+    <!-- 核心 2.5D 遊戲空間 (左3卡 + 中央鬧鐘 + 右3卡) -->
+    <section class="game-play-area">
+      
+      <!-- 左側卡槽直欄 (Slot 1, 2, 3) -->
+      <div class="cards-column left-column" id="left-cards-col">
+        <!-- 動態插入 3 張作息卡 -->
+      </div>
+
+      <!-- 中央鬧鐘主體區 -->
+      <div class="center-alarm-zone" id="center-clock-zone">
+        
+        <!-- 2.5D 擬物化大鬧鐘 -->
+        <div class="alarm-clock-widget" id="alarm-clock">
+          
+          <!-- 金屬雙鈴鐺與鎚子 -->
+          <div class="bells-container">
+            <div class="bell left-bell"></div>
+            <div class="bell-hammer"></div>
+            <div class="bell-handle"></div>
+            <div class="bell right-bell"></div>
+          </div>
+
+          <!-- 鬧鐘主體外殼 -->
+          <div class="clock-body">
+            
+            <!-- 鐘面與動態指針 -->
+            <div class="analog-dial">
+              <div class="dial-mark mark-12"></div>
+              <div class="dial-mark mark-3"></div>
+              <div class="dial-mark mark-6"></div>
+              <div class="dial-mark mark-9"></div>
+              <div class="clock-hand hour-hand" id="clock-hour-hand"></div>
+              <div class="clock-hand minute-hand" id="clock-minute-hand"></div>
+              <div class="dial-center-pin"></div>
+            </div>
+
+            <!-- 液晶數字時間面板 -->
+            <div class="digital-screen-box">
+              <div class="lcd-glow"></div>
+              <div class="digital-time-text" id="digital-time">07:00 AM</div>
+            </div>
+
+            <!-- 任務中文說明與語音按鈕 (完全呼應草圖) -->
+            <div class="task-banner-box">
+              <div class="task-zh-content">
+                <span class="task-label">任務：</span>
+                <span id="task-zh-text" class="task-zh-text">早晨起床了！</span>
+              </div>
+              <button id="clock-audio-btn" class="clock-audio-play-btn interactive-target" title="再次播放發音">
+                🔊 聽發音
+              </button>
+            </div>
+
+          </div>
+
+          <!-- 鬧鐘支撐腳架 -->
+          <div class="clock-feet">
+            <div class="foot left-foot"></div>
+            <div class="foot right-foot"></div>
+          </div>
+        </div>
+
+        <!-- 句型拼裝時間面板 (Sentence Builder - 參考 V2_06-07) -->
+        <div class="sentence-builder-panel" id="sentence-panel">
+          <div class="sentence-panel-header">
+            <div class="character-mini-bubble">
+              <img src="assets/students.webp" alt="Avatar" class="mini-avatar" />
+              <div class="speech-bubble" id="sentence-target-hint">請拼出句型：I wake up.</div>
+            </div>
+            <button id="clear-sentence-btn" class="clear-btn" title="重排積木">🔄 重排</button>
+          </div>
+
+          <!-- 句型填空目標格位 -->
+          <div class="sentence-slots-wrap" id="sentence-slots">
+            <!-- 動態插入單字空格 -->
+          </div>
+
+          <!-- 候選單字積木池 -->
+          <div class="word-blocks-pool" id="word-blocks">
+            <!-- 動態插入單字積木 -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 右側卡槽直欄 (Slot 4, 5, 6) -->
+      <div class="cards-column right-column" id="right-cards-col">
+        <!-- 動態插入 3 張作息卡 -->
+      </div>
+
+    </section>
+
+    <!-- 底部狀態提示條 -->
+    <footer class="game-footer-tip">
+      <span class="tip-icon">💡</span>
+      <span id="status-tip" class="status-tip-text">揮動食指或點擊卡片開始作息配對！</span>
+    </footer>
+
+  </main>
+
+  <!-- 全通關勝利結算彈窗 (Victory Modal) -->
+  <div id="victory-modal" class="screen-overlay">
+    <div class="victory-card 3d-card">
+      <div class="trophy-bounce">🏆</div>
+      <h2 class="victory-title">TIME MASTER!</h2>
+      <h3 class="victory-subtitle">恭喜你！完成一日晨間所有作息！</h3>
+      
+      <div class="victory-stats-grid">
+        <div class="stat-box">
+          <span class="stat-num" id="final-score">0</span>
+          <span class="stat-label">總得分</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-num" id="final-combo">0</span>
+          <span class="stat-label">最高連擊</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-num">100%</span>
+          <span class="stat-label">作息掌握度</span>
+        </div>
+      </div>
+
+      <div class="victory-character-wrap">
+        <img src="assets/students.webp" alt="Students Cheering" class="victory-students" />
+      </div>
+
+      <button id="btn-restart" class="glow-btn primary-btn large-btn">
+        <span>🔄 再玩一次 PLAY AGAIN</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 模組腳本載入 -->
+  <script src="sound.js"></script>
+  <script src="hand_tracker.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
