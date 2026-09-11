@@ -1,0 +1,22 @@
+{
+  "en": {
+    "I wake up.": "audios/routine_en_wake_up.mp3",
+    "I wash my face.": "audios/routine_en_wash_face.mp3",
+    "I brush my teeth.": "audios/routine_en_brush_teeth.mp3",
+    "I take a shower.": "audios/routine_en_take_shower.mp3",
+    "You eat your breakfast.": "audios/routine_en_eat_breakfast.mp3",
+    "You comb your hair.": "audios/routine_en_comb_hair.mp3",
+    "You take the bus.": "audios/routine_en_take_bus.mp3",
+    "You go to school.": "audios/routine_en_go_school.mp3"
+  },
+  "zh": {
+    "早晨起床了！伸個大懶腰": "audios/routine_zh_wake_up.mp3",
+    "走進浴室，洗洗臉更清醒！": "audios/routine_zh_wash_face.mp3",
+    "擠上牙膏，上上下下刷刷牙！": "audios/routine_zh_brush_teeth.mp3",
+    "沖個舒服的溫水澡，神清氣爽！": "audios/routine_zh_take_shower.mp3",
+    "坐在餐桌前，享用美味早餐！": "audios/routine_zh_eat_breakfast.mp3",
+    "站在鏡子前，把頭髮梳得整整齊齊！": "audios/routine_zh_comb_hair.mp3",
+    "校車來了！跟同伴一起搭公車！": "audios/routine_zh_take_bus.mp3",
+    "抵達學校大門，開始快樂的一天！": "audios/routine_zh_go_school.mp3"
+  }
+}

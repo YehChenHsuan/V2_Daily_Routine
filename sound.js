@@ -122,67 +122,67 @@ class SoundSystem {
     });
   }
 
-  // 播放完整英文句子（依據 V2_06-07 課文）
+  // 播放完整英文句子（使用 Google Cloud Neural2 最高級預錄音檔）
   speakSentence(sentenceText, onEnded = null) {
     if (this.isMuted) {
+      if (onEnded) setTimeout(onEnded, 300);
+      return;
+    }
+
+    const enMap = {
+      "I wake up.": "audios/routine_en_wake_up.mp3",
+      "I wash my face.": "audios/routine_en_wash_face.mp3",
+      "I brush my teeth.": "audios/routine_en_brush_teeth.mp3",
+      "I take a shower.": "audios/routine_en_take_shower.mp3",
+      "You eat your breakfast.": "audios/routine_en_eat_breakfast.mp3",
+      "You comb your hair.": "audios/routine_en_comb_hair.mp3",
+      "You take the bus.": "audios/routine_en_take_bus.mp3",
+      "You go to school.": "audios/routine_en_go_school.mp3"
+    };
+
+    const path = enMap[sentenceText];
+    if (path) {
+      const audio = new Audio(path);
+      audio.onended = () => { if (onEnded) onEnded(); };
+      audio.onerror = () => { if (onEnded) onEnded(); };
+      audio.play().catch(() => { if (onEnded) onEnded(); });
+    } else {
       if (onEnded) setTimeout(onEnded, 400);
-      return;
     }
-
-    if (!this.speechSynth) {
-      if (onEnded) setTimeout(onEnded, 800);
-      return;
-    }
-
-    this.speechSynth.cancel(); // 停止先前的朗讀
-    const utter = new SpeechSynthesisUtterance(sentenceText);
-    utter.lang = 'en-US';
-    utter.rate = 0.88; // 稍微放慢以利兒童聆聽模仿
-    utter.pitch = 1.05;
-
-    if (this.preferredVoice) {
-      utter.voice = this.preferredVoice;
-    }
-
-    utter.onend = () => {
-      if (onEnded) onEnded();
-    };
-
-    utter.onerror = () => {
-      if (onEnded) onEnded();
-    };
-
-    this.speechSynth.speak(utter);
   }
 
-  // TTS 備援 (英文單字)
+  // 播放鬧鐘任務中文提示語音（使用 Google Cloud 台灣正體中文 WaveNet-A 預錄音檔）
+  speakTTSZh(zhText, onEnded = null) {
+    if (this.isMuted) {
+      if (onEnded) setTimeout(onEnded, 300);
+      return;
+    }
+
+    const zhMap = {
+      "早晨起床了！伸個大懶腰": "audios/routine_zh_wake_up.mp3",
+      "走進浴室，洗洗臉更清醒！": "audios/routine_zh_wash_face.mp3",
+      "擠上牙膏，上上下下刷刷牙！": "audios/routine_zh_brush_teeth.mp3",
+      "沖個舒服的溫水澡，神清氣爽！": "audios/routine_zh_take_shower.mp3",
+      "坐在餐桌前，享用美味早餐！": "audios/routine_zh_eat_breakfast.mp3",
+      "站在鏡子前，把頭髮梳得整整齊齊！": "audios/routine_zh_comb_hair.mp3",
+      "校車來了！跟同伴一起搭公車！": "audios/routine_zh_take_bus.mp3",
+      "抵達學校大門，開始快樂的一天！": "audios/routine_zh_go_school.mp3"
+    };
+
+    const path = zhMap[zhText];
+    if (path) {
+      const audio = new Audio(path);
+      audio.onended = () => { if (onEnded) onEnded(); };
+      audio.onerror = () => { if (onEnded) onEnded(); };
+      audio.play().catch(() => { if (onEnded) onEnded(); });
+    } else {
+      if (onEnded) setTimeout(onEnded, 400);
+    }
+  }
+
+  // 備援方法相容性
   speakTTS(text, onEnded = null) {
-    if (this.isMuted || !this.speechSynth) {
-      if (onEnded) setTimeout(onEnded, 300);
-      return;
-    }
-    this.speechSynth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'en-US';
-    utter.rate = 0.9;
-    if (this.preferredVoice) utter.voice = this.preferredVoice;
-    utter.onend = () => { if (onEnded) onEnded(); };
-    utter.onerror = () => { if (onEnded) onEnded(); };
-    this.speechSynth.speak(utter);
-  }
-
-  // TTS 備援 (中文)
-  speakTTSZh(text, onEnded = null) {
-    if (this.isMuted || !this.speechSynth) {
-      if (onEnded) setTimeout(onEnded, 300);
-      return;
-    }
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'zh-TW';
-    utter.rate = 0.95;
-    utter.onend = () => { if (onEnded) onEnded(); };
-    utter.onerror = () => { if (onEnded) onEnded(); };
-    this.speechSynth.speak(utter);
+    this.speakSentence(text, onEnded);
   }
 
   // Web Audio 即時音效：鬧鐘鈴響 (Alarm Ring)
